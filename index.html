@@ -1074,24 +1074,24 @@
 
     function buildEpubCss() {
       return `@namespace epub "http://www.idpf.org/2007/ops";
-body{margin:0;font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",sans-serif;background:#f7f1dc;color:#2f2a22}
+body{margin:0;padding:0 0.8rem;font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",sans-serif;background:#f7f1dc;color:#2f2a22}
 h1,h2{font-weight:700;line-height:1.3}
-section{padding:0 1rem 1rem}
-.chapter-title{margin:1rem 0 .6rem;font-size:1.4rem}
-.entry{display:table;width:100%;table-layout:fixed;margin:0 0 .9rem;page-break-inside:avoid}
+section{padding:0.5rem 0.2rem 1.5rem}
+.chapter-title{margin:1rem 0 1rem;font-size:1.4rem;border-bottom:2px solid #cdb79f;padding-bottom:0.4rem}
+.entry{display:table;width:100%;table-layout:fixed;margin:0 0 1rem;page-break-inside:avoid;border-spacing:0}
 .entry-avatar-wrap,.entry-bubble-wrap{display:table-cell;vertical-align:bottom}
-.entry-avatar-wrap{width:5.8rem;padding-right:.7rem}
-.entry-avatar{display:block;width:4.8rem;height:4.8rem;border-radius:50%;border:.2rem solid #f4e3cc;object-fit:cover;background:#fff}
-.bubble{border-radius:1rem;border:.14rem solid #cdb79f;background:#fff;padding:.75rem .9rem}
-.meta{margin:0 0 .4rem;font-size:.78rem;color:#6a5948}
-.tag{display:inline-block;margin-right:.5rem;padding:.12rem .55rem;border:1px solid #ddc9b2;border-radius:999px;background:#f1e5d7;font-size:.72rem}
-.speaker{font-weight:700;font-size:.88rem}
-.line{white-space:pre-wrap;line-height:1.6;font-size:1rem}
+.entry-avatar-wrap{width:5.6rem;padding-right:0.6rem}
+.entry-avatar{display:block;width:4.8rem;height:4.8rem;border-radius:50%;border:3px solid #f4e3cc;object-fit:cover;background:#fff}
+.bubble{border-radius:1rem;border:2px solid #cdb79f;background:#fffdf8;padding:0.75rem 0.9rem}
+.meta{margin:0 0 0.4rem;font-size:0.75rem;color:#6a5948;display:block}
+.tag{display:inline-block;margin-right:0.4rem;padding:0.1rem 0.5rem;border:1px solid #ddc9b2;border-radius:999px;background:#f1e5d7;font-size:0.7rem}
+.speaker{font-weight:700;font-size:0.85rem}
+.line{white-space:pre-wrap;line-height:1.7;font-size:1.05rem}
 .entry.narration{display:block}
 .entry.narration .entry-avatar-wrap{display:none}
 .entry.narration .bubble{margin:0 auto;max-width:90%;text-align:center;border-style:dashed;background:#fffefb;border-color:#d8c8b4;color:#4f4437}
 .toc ol{padding-left:1.2rem}
-.toc li{margin:.4rem 0}`;
+.toc li{margin:0.5rem 0;font-size:1rem}`;
     }
 
     function buildEpubChapterXhtml(bookTitle, chapterTitle, items, chars, imageRefs) {
@@ -1167,10 +1167,10 @@ section{padding:0 1rem 1rem}
     }
 
     function buildEpubImageBundle(chars) {
-      const refs = { __default: "../images/default-avatar.png" };
       const files = [];
       const manifest = [];
       const defaultAsset = dataUrlToAsset(defaultAvatar, "default-avatar");
+      const refs = { __default: `../images/${defaultAsset.fileName}` };
       files.push({
         path: `OEBPS/images/${defaultAsset.fileName}`,
         data: defaultAsset.bytes,
