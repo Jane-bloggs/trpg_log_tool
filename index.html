@@ -998,6 +998,7 @@
         '<item id="style" href="styles/book.css" media-type="text/css"/>',
       ];
       const spine = [];
+      const imageBundle = buildEpubImageBundle(payload.charMap || {});
       const files = [
         {
           path: "mimetype",
@@ -1020,18 +1021,20 @@
           data: buildEpubCss(),
           text: true,
         },
+        ...imageBundle.files,
       ];
+      manifest.push(...imageBundle.manifest);
 
       chunks.forEach((items, index) => {
         const href = `text/chapter-${index + 1}.xhtml`;
         const id = `chapter-${index + 1}`;
-        const label = `Section ${index + 1}`;
+        const label = `第${index + 1}章`;
         navItems.push({ href, label });
         manifest.push(`<item id="${id}" href="${href}" media-type="application/xhtml+xml"/>`);
         spine.push(`<itemref idref="${id}"/>`);
         files.push({
           path: `OEBPS/${href}`,
-          data: buildEpubChapterXhtml(title, label, items, payload.charMap || {}),
+          data: buildEpubChapterXhtml(title, label, items, payload.charMap || {}, imageBundle.refs),
           text: true,
         });
       });
@@ -1071,22 +1074,28 @@
 
     function buildEpubCss() {
       return `@namespace epub "http://www.idpf.org/2007/ops";
-body{margin:0;padding:0 0 1.2rem;font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Hiragino Kaku Gothic ProN","Meiryo",serif;line-height:1.75;color:#231f1b;background:#fbf5ea}
+body{margin:0;font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",sans-serif;background:#f7f1dc;color:#2f2a22}
 h1,h2{font-weight:700;line-height:1.3}
-section{padding:0 1rem}
+section{padding:0 1rem 1rem}
 .chapter-title{margin:1rem 0 .6rem;font-size:1.4rem}
-.entry{display:block;margin:0 0 1rem;padding:.9rem 1rem;border:1px solid #ccb79b;border-radius:.8rem;background:#fffdf8;page-break-inside:avoid}
-.entry.narration{background:#fff8ef;border-style:dashed}
-.meta{margin:0 0 .4rem;font-size:.8rem;color:#6a5948}
-.tag{display:inline-block;margin-right:.5rem;padding:.1rem .55rem;border:1px solid #ddc9b2;border-radius:999px;background:#f1e5d7}
-.speaker{font-weight:700;font-size:.95rem}
-.line{white-space:pre-wrap}
+.entry{display:table;width:100%;table-layout:fixed;margin:0 0 .9rem;page-break-inside:avoid}
+.entry-avatar-wrap,.entry-bubble-wrap{display:table-cell;vertical-align:bottom}
+.entry-avatar-wrap{width:5.8rem;padding-right:.7rem}
+.entry-avatar{display:block;width:4.8rem;height:4.8rem;border-radius:50%;border:.2rem solid #f4e3cc;object-fit:cover;background:#fff}
+.bubble{border-radius:1rem;border:.14rem solid #cdb79f;background:#fff;padding:.75rem .9rem}
+.meta{margin:0 0 .4rem;font-size:.78rem;color:#6a5948}
+.tag{display:inline-block;margin-right:.5rem;padding:.12rem .55rem;border:1px solid #ddc9b2;border-radius:999px;background:#f1e5d7;font-size:.72rem}
+.speaker{font-weight:700;font-size:.88rem}
+.line{white-space:pre-wrap;line-height:1.6;font-size:1rem}
+.entry.narration{display:block}
+.entry.narration .entry-avatar-wrap{display:none}
+.entry.narration .bubble{margin:0 auto;max-width:90%;text-align:center;border-style:dashed;background:#fffefb;border-color:#d8c8b4;color:#4f4437}
 .toc ol{padding-left:1.2rem}
 .toc li{margin:.4rem 0}`;
     }
 
-    function buildEpubChapterXhtml(bookTitle, chapterTitle, items, chars) {
-      const body = items.map((item) => buildEpubEntryHtml(item, chars)).join("\n");
+    function buildEpubChapterXhtml(bookTitle, chapterTitle, items, chars, imageRefs) {
+      const body = items.map((item) => buildEpubEntryHtml(item, chars, imageRefs)).join("\n");
       return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="ja" xml:lang="ja">
@@ -1104,16 +1113,17 @@ section{padding:0 1rem}
 </html>`;
     }
 
-    function buildEpubEntryHtml(item, chars) {
+    function buildEpubEntryHtml(item, chars, imageRefs) {
       const attrLabel = item.attr === "NO_ATTR" ? "(属性なし)" : (item.attr || "");
       const textHtml = esc(item.text || "").replace(/\n/g, "<br/>");
       if (item.kind === "narration" || !item.speaker) {
-        return `<article class="entry narration"><div class="meta"><span class="tag">${esc(attrLabel)}</span><span class="speaker">地の文</span></div><div class="line">${textHtml}</div></article>`;
+        return `<article class="entry narration"><div class="entry-bubble-wrap"><div class="bubble"><div class="meta"><span class="tag">${esc(attrLabel)}</span><span class="speaker">地の文</span></div><div class="line">${textHtml}</div></div></div></article>`;
       }
       const cfg = chars[item.speaker] || {};
       const bg = esc(cfg.color || "#fffdf8");
       const border = esc(shadeColor(cfg.color || "#fffdf8", -30));
-      return `<article class="entry" style="background:${bg};border-color:${border}"><div class="meta"><span class="tag">${esc(attrLabel)}</span><span class="speaker">${esc(item.speaker || "")}</span></div><div class="line">${textHtml}</div></article>`;
+      const icon = esc(imageRefs[item.speaker] || imageRefs.__default || "../images/default-avatar.png");
+      return `<article class="entry"><div class="entry-avatar-wrap"><img class="entry-avatar" src="${icon}" alt=""/></div><div class="entry-bubble-wrap"><div class="bubble" style="background:${bg};border-color:${border}"><div class="meta"><span class="tag">${esc(attrLabel)}</span><span class="speaker">${esc(item.speaker || "")}</span></div><div class="line">${textHtml}</div></div></div></article>`;
     }
 
     function buildEpubNavXhtml(title, items) {
@@ -1154,6 +1164,56 @@ section{padding:0 1rem}
     ${spine.join("\n    ")}
   </spine>
 </package>`;
+    }
+
+    function buildEpubImageBundle(chars) {
+      const refs = { __default: "../images/default-avatar.png" };
+      const files = [];
+      const manifest = [];
+      const defaultAsset = dataUrlToAsset(defaultAvatar, "default-avatar");
+      files.push({
+        path: `OEBPS/images/${defaultAsset.fileName}`,
+        data: defaultAsset.bytes,
+        text: false,
+      });
+      manifest.push(`<item id="img-default-avatar" href="images/${defaultAsset.fileName}" media-type="${defaultAsset.mediaType}"/>`);
+
+      Object.entries(chars).forEach(([name, cfg], index) => {
+        const src = cfg?.icon;
+        if (!src || src === defaultAvatar) {
+          refs[name] = refs.__default;
+          return;
+        }
+        const asset = dataUrlToAsset(src, `speaker-${index + 1}`);
+        if (!asset) {
+          refs[name] = refs.__default;
+          return;
+        }
+        refs[name] = `../images/${asset.fileName}`;
+        files.push({
+          path: `OEBPS/images/${asset.fileName}`,
+          data: asset.bytes,
+          text: false,
+        });
+        manifest.push(`<item id="img-speaker-${index + 1}" href="images/${asset.fileName}" media-type="${asset.mediaType}"/>`);
+      });
+
+      return { refs, files, manifest };
+    }
+
+    function dataUrlToAsset(dataUrl, baseName) {
+      const match = String(dataUrl || "").match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) return null;
+      const mediaType = match[1];
+      const ext = mediaType.split("/")[1]?.replace("svg+xml", "svg") || "bin";
+      const binary = atob(match[2]);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return {
+        mediaType,
+        fileName: `${baseName}.${ext}`,
+        bytes,
+      };
     }
 
     async function createZip(entries) {
