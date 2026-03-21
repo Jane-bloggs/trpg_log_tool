@@ -339,6 +339,19 @@
         "</svg>"
       )));
 
+    function coloredAvatar(color) {
+      const bg = color || "#ede3d8";
+      const fg = shadeColor(bg, -50);
+      const svg =
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">' +
+        '<rect width="64" height="64" fill="' + bg + '"/>' +
+        '<path d="M0,64 C0,52 12,48 22,46 C26,44 29,43 32,43 C35,43 38,44 42,46 C52,48 64,52 64,64 Z" fill="' + fg + '"/>' +
+        '<rect x="27" y="36" width="10" height="9" rx="3" fill="' + fg + '"/>' +
+        '<circle cx="32" cy="24" r="14" fill="' + fg + '"/>' +
+        "</svg>";
+      return "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svg)));
+    }
+
     let entries = [];
     let filteredEntries = [];
     let activeAttrs = new Set();
@@ -670,7 +683,7 @@
         const picked = Object.keys(bucket).sort((a, b) => bucket[b] - bucket[a])[0];
         map[name] = {
           color: picked || autoColor(index),
-          icon: defaultAvatar,
+          icon: null,
           visible: true,
         };
       });
@@ -753,7 +766,7 @@
 
         const thumb = document.createElement("img");
         thumb.className = "icon-thumb";
-        thumb.src = charMap[name].icon || defaultAvatar;
+        thumb.src = charMap[name].icon || coloredAvatar(charMap[name].color);
         thumb.alt = `${name} icon`;
 
         const file = document.createElement("input");
@@ -876,9 +889,9 @@
         bubbleEl.style.borderColor = "#d8c8b4";
         bubbleEl.style.color = "#4f4437";
       } else {
-        const cfg = charMap[item.speaker] || { color: "#fff", icon: defaultAvatar };
+        const cfg = charMap[item.speaker] || { color: "#fff", icon: null };
         name.textContent = item.speaker;
-        avatarEl.src = cfg.icon || defaultAvatar;
+        avatarEl.src = cfg.icon || coloredAvatar(cfg.color);
         bubbleEl.style.background = cfg.color || "#fff";
         bubbleEl.style.borderColor = shadeColor(cfg.color || "#ffffff", -30);
         bubbleEl.style.color = "#231f1b";
@@ -957,19 +970,20 @@
     let activeAttrs = new Set(payload.activeAttrs || []);
     function hex(c){if((c||"").startsWith("#")) return c; const d=document.createElement("div"); d.style.color=c||"#fff"; document.body.appendChild(d); const rgb=getComputedStyle(d).color; d.remove(); const n=rgb.match(/\\d+/g).map(Number); return "#" + n.slice(0,3).map(v=>v.toString(16).padStart(2,"0")).join("");}
     function shade(c,o){const h=hex(c),n=parseInt(h.slice(1),16),r=Math.max(0,Math.min(255,((n>>16)&255)+o)),g=Math.max(0,Math.min(255,((n>>8)&255)+o)),b=Math.max(0,Math.min(255,(n&255)+o));return "#" + [r,g,b].map(v=>v.toString(16).padStart(2,"0")).join("")}
+    function coloredAvatar(c){const bg=c||"#ede3d8";const fg=shade(bg,-50);const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="'+bg+'"/><path d="M0,64 C0,52 12,48 22,46 C26,44 29,43 32,43 C35,43 38,44 42,46 C52,48 64,52 64,64 Z" fill="'+fg+'"/><rect x="27" y="36" width="10" height="9" rx="3" fill="'+fg+'"/><circle cx="32" cy="24" r="14" fill="'+fg+'"/></svg>';return "data:image/svg+xml;base64,"+btoa(unescape(encodeURIComponent(svg)));}
     function getCounts(){const m={}; entries.forEach(e=>m[e.attr]=(m[e.attr]||0)+1); return m;}
     function readAsDataUrl(file){return new Promise((resolve,reject)=>{const r=new FileReader(); r.onload=()=>resolve(String(r.result||"")); r.onerror=()=>reject(r.error); r.readAsDataURL(file);});}
     function speakerVisible(e){if(!e.speaker) return true; const cfg=charMap[e.speaker]; if(!cfg) return true; return cfg.visible !== false;}
     function nodeFor(it){const e=document.createElement("div"); e.className="entry"; const img=document.createElement("img"); img.className="entry-avatar"; img.alt=""; const b=document.createElement("article"); b.className="bubble"; const m=document.createElement("div"); m.className="meta"; const t=document.createElement("span"); t.className="tag"; t.textContent=(it.attr==="NO_ATTR")?"(属性なし)":it.attr; const n=document.createElement("span"); n.className="name"; const l=document.createElement("div"); l.className="line"; l.textContent=it.text; m.append(t,n); b.append(m,l);
       if(it.kind==="narration"||!it.speaker){e.classList.add("narration"); n.textContent="地の文"; img.src=defaultAvatar;}
-      else {const cfg=charMap[it.speaker]||{}; n.textContent=it.speaker; img.src=cfg.icon||defaultAvatar; b.style.background=cfg.color||"#fff"; b.style.borderColor=shade(cfg.color||"#fff",-30);}
+      else {const cfg=charMap[it.speaker]||{}; n.textContent=it.speaker; img.src=cfg.icon||coloredAvatar(cfg.color); b.style.background=cfg.color||"#fff"; b.style.borderColor=shade(cfg.color||"#fff",-30);}
       e.append(img,b); return e;}
     function renderAttrs(){attrsBox.innerHTML=""; const c=getCounts(); const keys=Object.keys(c); if(!keys.length){attrsBox.textContent="属性なし"; return;} keys.forEach(a=>{const row=document.createElement("label"); row.className="row"; const ck=document.createElement("input"); ck.type="checkbox"; ck.checked=activeAttrs.has(a); ck.onchange=()=>{ck.checked?activeAttrs.add(a):activeAttrs.delete(a); renderAll();}; const text=document.createElement("span"); text.textContent=((a==="NO_ATTR")?"(属性なし)":a)+" ("+c[a]+")"; row.append(ck,text); attrsBox.append(row);});}
     function renderChars(){charsBox.innerHTML=""; const names=Object.keys(charMap); if(!names.length){charsBox.textContent="キャラなし"; return;} names.forEach(name=>{const cfg=charMap[name]||{}; const row=document.createElement("div"); row.className="char-row";
       const vis=document.createElement("input"); vis.type="checkbox"; vis.checked=cfg.visible!==false; vis.onchange=()=>{cfg.visible=vis.checked; renderAll();};
       const nameEl=document.createElement("div"); nameEl.className="char-name"; nameEl.textContent=name;
       const color=document.createElement("input"); color.type="color"; color.value=hex(cfg.color||"#ffffff"); color.oninput=()=>{cfg.color=color.value; renderAll();};
-      const thumb=document.createElement("img"); thumb.className="icon-thumb"; thumb.src=cfg.icon||defaultAvatar; thumb.alt=name;
+      const thumb=document.createElement("img"); thumb.className="icon-thumb"; thumb.src=cfg.icon||coloredAvatar(cfg.color); thumb.alt=name;
       const file=document.createElement("input"); file.type="file"; file.accept="image/*"; file.onchange=async()=>{const f=file.files&&file.files[0]; if(!f) return; cfg.icon=await readAsDataUrl(f); thumb.src=cfg.icon; renderAll();};
       row.append(vis,nameEl,color,thumb,file); charsBox.append(row);});}
     function renderAll(){const visible=entries.filter(e=>activeAttrs.has(e.attr)&&speakerVisible(e)); progress.textContent=visible.length+"件"; flow.innerHTML=""; if(!visible.length){const note=document.createElement("div"); note.className="line"; note.textContent="表示対象がありません"; flow.append(note); return;} visible.forEach(it=>flow.appendChild(nodeFor(it)));}
