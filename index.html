@@ -279,6 +279,7 @@
       <div id="loadStatus" class="hint"></div>
       <div class="toolbar">
         <button id="exportBtn" class="primary" disabled>HTMLを出力</button>
+        <button id="exportStaticBtn" disabled>閲覧専用HTMLを出力</button>
         <button id="epubBtn" disabled>EPUBを出力</button>
       </div>
 
@@ -318,6 +319,7 @@
     const attributesBox = document.getElementById("attributesBox");
     const charactersBox = document.getElementById("charactersBox");
     const exportBtn = document.getElementById("exportBtn");
+    const exportStaticBtn = document.getElementById("exportStaticBtn");
     const epubBtn = document.getElementById("epubBtn");
     const allOnBtn = document.getElementById("allOnBtn");
     const allOffBtn = document.getElementById("allOffBtn");
@@ -414,6 +416,19 @@
       URL.revokeObjectURL(url);
     });
 
+    exportStaticBtn.addEventListener("click", () => {
+      if (!entries.length) return;
+      const visible = filteredEntries.length ? filteredEntries : entries;
+      const html = buildStaticExportHtml(visible, charMap);
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "trpg-comic-static.html";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
     epubBtn.addEventListener("click", async () => {
       if (!entries.length) return;
       epubBtn.disabled = true;
@@ -449,6 +464,7 @@
       renderCharacterSettings();
       applyFiltersAndRender();
       exportBtn.disabled = entries.length === 0;
+      exportStaticBtn.disabled = entries.length === 0;
       epubBtn.disabled = entries.length === 0;
       allOnBtn.disabled = attrs.length === 0;
       allOffBtn.disabled = attrs.length === 0;
@@ -989,6 +1005,90 @@
     document.getElementById("attrOff").onclick=()=>{activeAttrs=new Set(); renderAttrs(); renderAll();};
     renderAttrs(); renderChars(); renderAll();
   <\/script>
+</body>
+</html>`;
+    }
+
+    function buildStaticExportHtml(visibleEntries, charMap) {
+      // キャラクターごとに色・アイコンを1回だけCSSに書き出す
+      const charIndex = {};
+      const charCssLines = [];
+      let ci = 0;
+      Object.keys(charMap).forEach((name) => {
+        const cfg = charMap[name] || {};
+        const bgColor = toHex(cfg.color || "#fff");
+        const borderColor = shadeColor(bgColor, -30);
+        const avatarSrc = cfg.icon || coloredAvatar(bgColor);
+        const idx = ci++;
+        charIndex[name] = { idx, bgColor, borderColor, avatarSrc };
+        charCssLines.push(
+          `.av-${idx}{background-image:url('${avatarSrc}')}`,
+          `.bub-${idx}{background:${bgColor};border-color:${borderColor}}`
+        );
+      });
+      const charCss = charCssLines.join("\n    ");
+
+      const parts = [];
+      for (const item of visibleEntries) {
+        const attrText = item.attr === "NO_ATTR" ? "(属性なし)" : esc(item.attr);
+        if (item.kind === "narration" || !item.speaker) {
+          parts.push(
+            `<div class="entry narration"><article class="bubble narration-bubble">` +
+            `<div class="meta"><span class="tag">${attrText}</span><span class="name">地の文</span></div>` +
+            `<div class="line">${esc(item.text)}</div></article></div>`
+          );
+        } else {
+          const c = charIndex[item.speaker];
+          if (c) {
+            parts.push(
+              `<div class="entry"><div class="entry-avatar av-${c.idx}"></div>` +
+              `<article class="bubble bub-${c.idx}">` +
+              `<div class="meta"><span class="tag">${attrText}</span><span class="name">${esc(item.speaker)}</span></div>` +
+              `<div class="line">${esc(item.text)}</div></article></div>`
+            );
+          } else {
+            parts.push(
+              `<div class="entry"><div class="entry-avatar"></div>` +
+              `<article class="bubble">` +
+              `<div class="meta"><span class="tag">${attrText}</span><span class="name">${esc(item.speaker)}</span></div>` +
+              `<div class="line">${esc(item.text)}</div></article></div>`
+            );
+          }
+        }
+      }
+
+      const rows = parts.join("\n");
+      return `<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TRPG Comic Viewer</title>
+  <style>
+    body{margin:0;font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",sans-serif;background:linear-gradient(145deg,#f7f1dc,#f9d8b6);color:#2f2a22;min-height:100vh}
+    .root{max-width:1100px;margin:0 auto;padding:20px 16px}
+    .flow{display:flex;flex-direction:column;gap:10px}
+    .entry{display:flex;gap:10px;align-items:flex-end}
+    .entry-avatar{width:76px;height:76px;border-radius:50%;border:3px solid #f4e3cc;background:#fff center/cover no-repeat;flex-shrink:0}
+    .bubble{max-width:min(760px,92%);border-radius:16px;border:2px solid #cdb79f;background:#fff;padding:12px 14px;box-shadow:0 8px 16px rgba(0,0,0,.08)}
+    .meta{display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:12px}
+    .tag{background:#f1e5d7;border:1px solid #ddc9b2;border-radius:999px;padding:2px 8px;font-size:11px}
+    .name{font-weight:700;font-size:13px}
+    .line{white-space:pre-wrap;line-height:1.6;font-size:17px;color:#231f1b}
+    .entry.narration{justify-content:center}
+    .entry.narration .entry-avatar{display:none}
+    .narration-bubble{margin:0 auto;max-width:900px;text-align:center;border-style:dashed;background:#fffefb!important;border-color:#d8c8b4!important}
+    .narration-bubble .line{color:#4f4437}
+    @media(max-width:760px){.entry-avatar{width:60px;height:60px}.line{font-size:15px}}
+    ${charCss}
+  </style>
+</head>
+<body>
+  <div class="root">
+    <div class="flow">
+${rows}
+    </div>
+  </div>
 </body>
 </html>`;
     }
